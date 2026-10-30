@@ -1,0 +1,18 @@
+flowchart LR
+  subgraph Surfaces
+    P[Jira issue panel<br/>UI Kit sidebar]
+    R[Rovo agent<br/>Retrace Triage + SKILL.md]
+    M[MCP clients & Rovo Studio<br/>rovo:mcp]
+  end
+  subgraph Forge["Forge app (read-only, no egress)"]
+    A[Actions & resolver<br/>find · triage · replay · what-if]
+    C[Deterministic core<br/>canonical JSON · seeded RNG · sha256 chain]
+    S[(Forge storage<br/>traces)]
+  end
+  J[Jira REST API<br/>read:jira-work]
+  P --> A
+  R --> A
+  M --> A
+  A --> C
+  A <--> S
+  A --> J
