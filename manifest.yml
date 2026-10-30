@@ -1,0 +1,88 @@
+modules:
+  rovo:agent:
+    - key: retrace-agent
+      name: Retrace Triage
+      description: Triages Jira issues and records every decision as a replayable, hash-chained trace.
+      prompt: resource:agent-prompt;agent.txt
+      conversationStarters:
+        - Triage this issue and record a trace
+        - Replay the latest trace for this issue
+        - What if this issue were labelled security?
+      actions:
+        - triage-issue
+        - replay-trace
+        - what-if-trace
+  rovo:action:
+    - key: triage-issue
+      name: Triage issue with trace
+      function: triage-fn
+      actionVerb: GET
+      description: Suggests priority, labels and assignee for a Jira issue using a deterministic scorer, and stores a hash-chained trace.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: The Jira issue key, for example PROJ-123.
+        seed:
+          title: Seed
+          type: integer
+          required: false
+          description: Optional RNG seed. Defaults to a value derived from the issue key.
+    - key: replay-trace
+      name: Replay triage trace
+      function: replay-fn
+      actionVerb: GET
+      description: Re-executes the stored trace for an issue and verifies every step hash matches.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: The Jira issue key.
+    - key: what-if-trace
+      name: What-if triage rerun
+      function: whatif-fn
+      actionVerb: GET
+      description: Reruns triage with changed inputs (summary, description, labels, components) and returns a diff against the recorded decision.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: The Jira issue key.
+        overridesJson:
+          title: Overrides (JSON)
+          type: string
+          required: true
+          description: 'JSON object of fields to override, e.g. {"labels":["security"]}.'
+  jira:issuePanel:
+    - key: retrace-panel
+      resource: panel
+      resolver:
+        function: resolver
+      render: native
+      title: Retrace
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+  function:
+    - key: triage-fn
+      handler: actions/index.triageHandler
+    - key: replay-fn
+      handler: actions/index.replayHandler
+    - key: whatif-fn
+      handler: actions/index.whatIfHandler
+    - key: resolver
+      handler: resolvers/index.handler
+resources:
+  - key: panel
+    path: src/frontend/index.tsx
+  - key: agent-prompt
+    path: prompts
+app:
+  runtime:
+    name: nodejs22.x
+  id: ari:cloud:ecosystem::app/REPLACE-AFTER-FORGE-REGISTER
+permissions:
+  scopes:
+    - read:jira-work
+    - storage:app
