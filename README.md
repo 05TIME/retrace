@@ -20,7 +20,7 @@ flowchart LR
   P -->|invoke| S[Resolver]
   A --> SV[service.ts]
   S --> SV
-  SV -->|read:jira-work| J[(Jira REST API)]
+  SV -->|read:jira-work, read:jira-user| J[(Jira REST API)]
   SV --> C[Deterministic core: canonical JSON, seeded RNG, rule scorer, hash chain]
   SV -->|storage:app| K[(Forge KVS: trace + inputs per issue)]
 ```
@@ -109,6 +109,7 @@ Use the **[Retrace install link](https://developer.atlassian.com/console/install
 
 Retrace stores one trace per triaged issue in Atlassian-hosted Forge storage. A trace contains the issue key, summary, description, labels, components and type, plus the Atlassian account IDs and display names of the project's assignable users (used for the assignee suggestion).
 
+- Permissions: `read:jira-work` (read issues), `read:jira-user` (Read Jira user info, to suggest an assignee), `storage:app` (store traces).
 - No data leaves Atlassian: no external egress and no third parties.
 - Retention: a trace is kept until the issue is triaged again (replaced) or the app is uninstalled.
 - Read-only and advisory: Retrace never edits issues.

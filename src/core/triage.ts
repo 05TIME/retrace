@@ -136,6 +136,12 @@ export function pickAssignee(labels: string[], issue: IssueInput, candidates: Ca
 }
 
 /** Merge user lists from Jira into deduped, active, human candidates. Order-independent (sorted by accountId). */
+/** Strict filter for /user/assignable/search results: human (atlassian) accounts that are active. */
+export function filterAssignable(users: any): any[] {
+  if (!Array.isArray(users)) return [];
+  return users.filter((u) => u && u.accountType === 'atlassian' && u.active !== false && typeof u.accountId === 'string');
+}
+
 export function mergeCandidates(...lists: any[][]): Candidate[] {
   const byId = new Map<string, Candidate>();
   for (const list of lists) {

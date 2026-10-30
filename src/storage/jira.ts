@@ -1,5 +1,5 @@
 import api, { route } from '@forge/api';
-import { buildFindJql, mergeCandidates, clampMax, mapSearchResult, type Candidate, type FindIssuesParams, type FoundIssue, type IssueInput } from '../core';
+import { buildFindJql, filterAssignable, mergeCandidates, clampMax, mapSearchResult, type Candidate, type FindIssuesParams, type FoundIssue, type IssueInput } from '../core';
 
 function adfToText(node: any): string {
   if (!node) return '';
@@ -32,10 +32,9 @@ export async function fetchIssue(issueKey: string): Promise<IssueInput> {
 }
 
 /**
- * Candidate assignees. Root cause of the "no assignable users" bug: /user/assignable/search needs the
- * read:jira-user scope (classic) which this app does not request, so asApp got a 401/403 and we silently
- * returned []. We keep trying it (works if the scope is ever added) but fall back to data readable with
- * read:jira-work alone: the issue's current assignee plus recent assignees in the same project.
+ * Candidate assignees. /user/assignable/search (issueKey, maxResults) needs the read:jira-user scope,
+ * which the app now requests. Sites that have not yet accepted the upgrade get a 401/403 there, so we
+ * still fall back to data readable with read:jira-work: current assignee plus recent project assignees.
  */
 export async function fetchCandidates(issueKey: string): Promise<Candidate[]> {
   const lists: any[][] = [];
@@ -45,7 +44,7 @@ export async function fetchCandidates(issueKey: string): Promise<Candidate[]> {
     );
     if (res.ok) {
       const body: any = await res.json();
-      if (Array.isArray(body)) lists.push(body);
+      lists.push(filterAssignable(body));
     } else {
       console.warn(`retrace assignable/search ${issueKey}: ${res.status}; falling back to assignee history`);
     }
