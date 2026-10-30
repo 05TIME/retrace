@@ -2,7 +2,8 @@ modules:
   rovo:agent:
     - key: retrace-agent
       name: Retrace Triage
-      description: Triages Jira issues and records every decision as a replayable, hash-chained trace.
+      description: Triages Jira issues and records every decision as a replayable,
+        hash-chained trace.
       prompt: resource:agent-prompt;agent.txt
       conversationStarters:
         - Triage this issue and record a trace
@@ -12,12 +13,13 @@ modules:
         - triage-issue
         - replay-trace
         - what-if-trace
-  rovo:action:
+  action:
     - key: triage-issue
       name: Triage issue with trace
       function: triage-fn
       actionVerb: GET
-      description: Suggests priority, labels and assignee for a Jira issue using a deterministic scorer, and stores a hash-chained trace.
+      description: Suggests priority, labels and assignee for a Jira issue using a
+        deterministic scorer, and stores a hash-chained trace.
       inputs:
         issueKey:
           title: Issue key
@@ -33,7 +35,8 @@ modules:
       name: Replay triage trace
       function: replay-fn
       actionVerb: GET
-      description: Re-executes the stored trace for an issue and verifies every step hash matches.
+      description: Re-executes the stored trace for an issue and verifies every step
+        hash matches.
       inputs:
         issueKey:
           title: Issue key
@@ -44,7 +47,8 @@ modules:
       name: What-if triage rerun
       function: whatif-fn
       actionVerb: GET
-      description: Reruns triage with changed inputs (summary, description, labels, components) and returns a diff against the recorded decision.
+      description: Reruns triage with changed inputs (summary, description, labels,
+        components) and returns a diff against the recorded decision.
       inputs:
         issueKey:
           title: Issue key
@@ -81,7 +85,7 @@ resources:
 app:
   runtime:
     name: nodejs22.x
-  id: ari:cloud:ecosystem::app/REPLACE-AFTER-FORGE-REGISTER
+  id: ari:cloud:ecosystem::app/2b9b66b6-b31e-4dcd-810f-9b73f6cf9015
 permissions:
   scopes:
     - read:jira-work
