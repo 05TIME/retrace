@@ -43,7 +43,7 @@ Retrace suggests a priority, labels and an assignee for a Jira issue, and record
 Retrace is read-only and advisory. It never edits issues.
 
 ## How we built it
-- **Forge** app on Jira Cloud. The UI Kit issue panel is in the issue sidebar (`jira:issueContext`), and Forge storage (KVS) holds traces. Jira REST is called through `asApp`. Scopes are just `read:jira-work` and `storage:app`, with no egress.
+- **Forge** app on Jira Cloud. The UI Kit issue panel is in the issue sidebar (`jira:issueContext`), and Forge storage (KVS) holds traces. Jira REST is called through `asApp`. Scopes are just `read:jira-work`, `read:jira-user` (Read Jira user info, to suggest an assignee) and `storage:app`, with no egress.
 - **Rovo:** a `rovo:agent` with four `action` modules: find-issues (JQL search, so the agent never guesses keys), triage-issue, replay-trace and what-if-trace. A `rovo:skill` packages SKILL.md instructions.
 - **MCP:** a `rovo:mcp` module exposes the same four actions as tools, at `https://mcp.atlassian.com/forge/2b9b66b6-b31e-4dcd-810f-9b73f6cf9015`.
 - **Deterministic core** in plain TypeScript: canonical JSON, a seeded RNG for tie-breaks, a sha256 step chain, replay, and a what-if diff. Time is never hashed, and order-insensitive inputs are sorted.
@@ -83,7 +83,7 @@ Retrace declares a `rovo:mcp` module ("Retrace MCP") that exposes the same four 
 ---
 
 ## Testing instructions (paste into the Devpost testing field)
-1. Open the install link above as a **site admin**, choose your Jira Cloud site and **Jira**, approve `read:jira-work` and `storage:app`, and install.
+1. Open the install link above as a **site admin**, choose your Jira Cloud site and **Jira**, approve `read:jira-work`, `read:jira-user` (Read Jira user info, to suggest an assignee) and `storage:app`, and install.
 2. Open any issue → right sidebar → **Retrace trace** → **Triage + record**. You'll see a priority, labels, an assignee, the reasons and a root hash.
 3. Click **Triage + record** again. Expect "Unchanged" with the same hash. Then click **Replay** and expect **Verified**.
 4. What-if: tick **security** (or remove a detected label) and/or choose **Force Highest**, then **Run what-if**. You'll see the before → after diff. Nothing is saved.
