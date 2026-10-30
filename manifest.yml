@@ -68,6 +68,15 @@ modules:
       render: native
       title: Retrace
       icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+  jira:issueContext:
+    - key: retrace-context
+      resource: panel
+      resolver:
+        function: resolver
+      render: native
+      title: Retrace
+      label: Retrace trace
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
   function:
     - key: triage-fn
       handler: actions/index.triageHandler
