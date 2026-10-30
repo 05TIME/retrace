@@ -14,6 +14,26 @@ modules:
         - triage-issue
         - replay-trace
         - what-if-trace
+      skills:
+        - retrace-triage
+  rovo:mcp:
+    - key: retrace-mcp
+      name: Retrace MCP
+      tools:
+        - find-issues
+        - triage-issue
+        - replay-trace
+        - what-if-trace
+  rovo:skill:
+    - key: retrace-triage
+      source:
+        dir: skills/retrace-triage
+      dependencies:
+        tools:
+          - find-issues
+          - triage-issue
+          - replay-trace
+          - what-if-trace
   action:
     - key: find-issues
       name: Find recent issues
