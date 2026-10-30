@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ForgeReconciler, {
-  Button, ButtonGroup, Code, Heading, Inline, Lozenge, SectionMessage, Stack, Text, TextArea,
+  Button, ButtonGroup, Code, Heading, Inline, Lozenge, SectionMessage, Spinner, Stack, Text, TextArea,
 } from '@forge/react';
 import { invoke } from '@forge/bridge';
 
@@ -12,6 +12,7 @@ const App = () => {
   const [whatIfRes, setWhatIfRes] = useState<any>(null);
   const [overrides, setOverrides] = useState('{"labels":["security"]}');
   const [busy, setBusy] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const run = async (fn: () => Promise<void>) => {
@@ -19,7 +20,7 @@ const App = () => {
     try { await fn(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   };
 
-  useEffect(() => { run(async () => setTrace(await invoke('getTrace'))); }, []);
+  useEffect(() => { run(async () => setTrace(await invoke('getTrace'))).finally(() => setLoaded(true)); }, []);
 
   return (
     <Stack space="space.200">
@@ -29,7 +30,8 @@ const App = () => {
         <Button isDisabled={busy || !trace} onClick={() => run(async () => setReplayRes(await invoke('replay')))}>Replay</Button>
         <Button isDisabled={busy || !trace} onClick={() => run(async () => setWhatIfRes(await invoke('whatIf', { overrides })))}>What-if</Button>
       </ButtonGroup>
-      {!trace && <Text>No trace yet for this issue.</Text>}
+      {!loaded && <Inline space="space.100"><Spinner size="small" /><Text>Loading Retrace trace…</Text></Inline>}
+      {loaded && !trace && <Text>No trace yet for this issue.</Text>}
       {trace && (
         <Stack space="space.100">
           <Heading size="small">Decision</Heading>
