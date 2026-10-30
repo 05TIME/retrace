@@ -116,7 +116,7 @@ export function isPriority(v: unknown): v is Priority {
 /** Pick assignee by skill overlap, then lowest load; remaining ties broken by the seeded RNG. */
 export function pickAssignee(labels: string[], issue: IssueInput, candidates: Candidate[], rng: Rng) {
   if (candidates.length === 0) {
-    return { accountId: null as string | null, displayName: null as string | null, reason: 'no assignable users on this project, so left unassigned', tied: 0 };
+    return { accountId: null as string | null, displayName: null as string | null, reason: 'no assignable users found', tied: 0 };
   }
   const tags = new Set([...labels, ...issue.components.map((c) => c.toLowerCase())]);
   const scored = [...candidates]

@@ -19,6 +19,10 @@ const priorityLook = (p: string): 'removed' | 'moved' | 'inprogress' | 'default'
   p === 'Highest' ? 'removed' : p === 'High' ? 'moved' : p === 'Medium' ? 'inprogress' : p === 'Low' ? 'default' : 'success';
 const show = (v: unknown) => (Array.isArray(v) ? (v.length ? v.join(', ') : 'none') : v === null || v === undefined ? 'none' : String(v));
 
+/** Display-only rewording; hashed trace text must stay byte-identical within an engine version. */
+const displayReason = (r: string) =>
+  r === 'Assignee: no assignable users found.' ? 'Assignee: Unassigned: no assignable users on this project.' : r;
+
 /** Without this, any render error unmounts the tree and the host shows an empty (blank) panel. */
 class Boundary extends React.Component<{ children: React.ReactNode }, { err: string | null }> {
   state = { err: null as string | null };
@@ -45,7 +49,7 @@ const Decision = ({ d }: { d: any }) => (
     {Array.isArray(d.reasons) && d.reasons.length > 0 && (
       <Stack space="space.050">
         <Heading size="xsmall">Why</Heading>
-        {d.reasons.map((r: string, i: number) => <Text key={i}>• {r}</Text>)}
+        {d.reasons.map((r: string, i: number) => <Text key={i}>• {displayReason(r)}</Text>)}
       </Stack>
     )}
   </Stack>

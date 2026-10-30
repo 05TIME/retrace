@@ -46,8 +46,8 @@ describe('describeOverrides', () => {
 });
 
 describe('assignee and starters', () => {
-  it('explains an empty assignee pool', () => {
-    expect(runTriage({ issue: issue('x'), candidates: [] }).decision.reasons?.at(-1)).toMatch(/no assignable users on this project/);
+  it('keeps the 2.6.0 hashed assignee reason (display wording lives in the UI)', () => {
+    expect(runTriage({ issue: issue('x'), candidates: [] }).decision.reasons?.at(-1)).toBe('Assignee: no assignable users found.');
   });
   it('has exactly 3 conversation starters including a what-if', () => {
     const m = readFileSync('manifest.yml', 'utf8');

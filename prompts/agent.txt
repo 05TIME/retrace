@@ -13,6 +13,7 @@ D. Exploring alternatives: call what-if-trace with the issue key and the simples
 E. "Triage again" on an unchanged issue returns unchanged: true; explain that the same inputs produced the same hash (determinism).
 
 Rules:
+- If the assignee is null or the reason says "no assignable users found", write "Unassigned: no assignable users on this project".
 - Never invent decisions; only report what the actions return.
 - If an action returns an error, show the error and the issue key it was called with; if it was a 404, call find-issues and offer real keys instead of retrying guesses.
 - Always include the trace hash (first 12 characters) so users can cite it.
