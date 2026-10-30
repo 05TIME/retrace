@@ -1,9 +1,10 @@
+import { CURRENT_ENGINE } from './guard';
 import { canonicalize } from './canonical';
 import { GENESIS, hashValue, sha256 } from './hash';
 import { createRng, seedFromString } from './rng';
-import { Candidate, IssueInput, detectLabels, pickAssignee, priorityFor } from './triage';
+import { Candidate, IssueInput, Priority, detectLabels, isPriority, pickAssignee, priorityFor } from './triage';
 
-export const ENGINE_VERSION = 'retrace-core/1';
+export const ENGINE_VERSION = CURRENT_ENGINE;
 
 export interface TraceStep {
   index: number;
@@ -18,6 +19,8 @@ export interface Decision {
   priority: string;
   labels: string[];
   assignee: string | null;
+  assigneeName?: string | null;
+  reasons?: string[];
 }
 
 export interface Trace {
@@ -35,6 +38,8 @@ export interface TriageInput {
   issue: IssueInput;
   candidates: Candidate[];
   seed?: number;
+  /** What-if only: pin the priority instead of scoring it. Recorded in the trace. */
+  forcePriority?: Priority;
 }
 
 function stepHash(prevHash: string, index: number, name: string, input: unknown, output: unknown): string {
@@ -61,14 +66,27 @@ export function runTriage(input: TriageInput, now: () => string = () => new Date
   };
 
   const det = record('detect-labels', { issue: input.issue }, detectLabels(input.issue)) as ReturnType<typeof detectLabels>;
-  const priority = record('score-priority', { score: det.score }, { priority: priorityFor(det.score) }) as { priority: string };
+  const forced = input.forcePriority;
+  const priority = record(
+    'score-priority',
+    forced ? { score: det.score, forcePriority: forced } : { score: det.score },
+    forced
+      ? { priority: forced, reason: `forced to ${forced} (what-if)` }
+      : { priority: priorityFor(det.score), reason: `score ${det.score} maps to ${priorityFor(det.score)}` },
+  ) as { priority: string; reason: string };
   const assignee = record(
     'pick-assignee',
     { labels: det.labels, candidates: input.candidates, rngState: rng.state() },
     pickAssignee(det.labels, input.issue, input.candidates, rng),
-  ) as { accountId: string | null };
+  ) as { accountId: string | null; displayName: string | null; reason: string };
 
-  const decision: Decision = { priority: priority.priority, labels: det.labels, assignee: assignee.accountId };
+  const decision: Decision = {
+    priority: priority.priority,
+    labels: det.labels,
+    assignee: assignee.accountId,
+    assigneeName: assignee.displayName,
+    reasons: [...det.reasons, `Priority: ${priority.reason}.`, `Assignee: ${assignee.reason}.`],
+  };
   record('decision', null, decision);
 
   return {
@@ -130,9 +148,9 @@ export function diffDecisions(a: Decision, b: Decision): FieldDiff[] {
   return out;
 }
 
-export type IssueOverrides = Partial<Omit<IssueInput, 'key'>>;
+export type IssueOverrides = Partial<Omit<IssueInput, 'key'>> & { forcePriority?: Priority };
 
-const OVERRIDABLE = ['summary', 'description', 'labels', 'components', 'issueType'] as const;
+const OVERRIDABLE = ['summary', 'description', 'labels', 'components', 'issueType', 'forcePriority'] as const;
 
 export function parseOverrides(raw: unknown): IssueOverrides {
   const obj = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -141,6 +159,11 @@ export function parseOverrides(raw: unknown): IssueOverrides {
   for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
     if (!(OVERRIDABLE as readonly string[]).includes(k)) throw new TypeError(`field not overridable: ${k}`);
     const isList = k === 'labels' || k === 'components';
+    if (k === 'forcePriority') {
+      if (!isPriority(v)) throw new TypeError('forcePriority must be one of Highest, High, Medium, Low, Lowest');
+      out[k] = v;
+      continue;
+    }
     if (isList ? !(Array.isArray(v) && v.every((x) => typeof x === 'string')) : typeof v !== 'string') {
       throw new TypeError(`invalid type for ${k}`);
     }
@@ -151,11 +174,39 @@ export function parseOverrides(raw: unknown): IssueOverrides {
 
 /** Counterfactual rerun with the same seed, so only the overridden inputs can change the outcome. */
 export function whatIf(trace: Trace, input: TriageInput, overrides: IssueOverrides) {
+  const { forcePriority, ...issueOverrides } = overrides;
   const alt = runTriage(
-    { issue: { ...input.issue, ...overrides }, candidates: input.candidates, seed: trace.seed },
+    { issue: { ...input.issue, ...issueOverrides }, candidates: input.candidates, seed: trace.seed, forcePriority },
     () => trace.recordedAt,
   );
   return { alt, diff: diffDecisions(trace.decision, alt.decision) };
 }
 
-export { isTrace } from './guard';
+export { isTrace, traceStatus, CURRENT_ENGINE } from './guard';
+
+/** Friendly what-if controls: add/remove labels and optionally force a priority, merged with raw JSON overrides. */
+export interface WhatIfControls {
+  addLabels?: string[] | string;
+  removeLabels?: string[] | string;
+  forcePriority?: string;
+  overrides?: unknown;
+}
+
+const splitList = (v: unknown): string[] =>
+  Array.isArray(v) ? v.map(String) : typeof v === 'string' ? v.split(',') : [];
+
+export function buildOverrides(base: IssueInput, c: WhatIfControls): IssueOverrides {
+  const raw = c.overrides === undefined || c.overrides === '' ? {} : parseOverrides(c.overrides);
+  const add = splitList(c.addLabels).map((s) => s.trim().toLowerCase()).filter(Boolean);
+  const remove = new Set(splitList(c.removeLabels).map((s) => s.trim().toLowerCase()).filter(Boolean));
+  const out: IssueOverrides = { ...raw };
+  if (add.length || remove.size) {
+    const start = raw.labels ?? base.labels;
+    out.labels = [...new Set([...start.map((l) => l.toLowerCase()), ...add])].filter((l) => !remove.has(l)).sort();
+  }
+  if (c.forcePriority !== undefined && c.forcePriority !== '') {
+    if (!isPriority(c.forcePriority)) throw new TypeError('forcePriority must be one of Highest, High, Medium, Low, Lowest');
+    out.forcePriority = c.forcePriority;
+  }
+  return out;
+}

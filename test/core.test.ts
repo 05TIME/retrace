@@ -52,7 +52,8 @@ describe('triage pipeline', () => {
   it('produces a decision and a valid hash chain', () => {
     const t = runTriage(input);
     expect(t.decision.priority).toBe('Highest');
-    expect(t.decision.labels).toEqual(['outage', 'security']);
+    expect(t.decision.labels).toEqual(['bug', 'crash', 'outage', 'security']);
+    expect(t.decision.reasons?.length).toBeGreaterThan(3);
     expect(['u-a', 'u-b']).toContain(t.decision.assignee);
     expect(t.steps[0].prevHash).toBe(GENESIS);
     expect(t.steps.map((s) => s.name)).toEqual(['detect-labels', 'score-priority', 'pick-assignee', 'decision']);
@@ -69,7 +70,7 @@ describe('triage pipeline', () => {
     expect(runTriage(reversed).rootHash).toBe(runTriage(input).rootHash);
   });
   it('maps scores to priorities', () => {
-    expect([0, 1, 2, 5, 8].map(priorityFor)).toEqual(['Lowest', 'Low', 'Medium', 'High', 'Highest']);
+    expect([0, 1, 2, 3, 5, 6, 8, 9].map(priorityFor)).toEqual(['Lowest', 'Low', 'Low', 'Medium', 'Medium', 'High', 'High', 'Highest']);
   });
   it('handles no candidates', () => {
     expect(runTriage({ ...input, candidates: [] }).decision.assignee).toBeNull();

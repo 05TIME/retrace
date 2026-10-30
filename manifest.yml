@@ -8,8 +8,9 @@ modules:
       conversationStarters:
         - Triage the newest issue
         - Triage this issue and record a trace
-        - Replay the latest trace for this issue
+        - Replay the trace for this issue and verify it
         - What if this issue were labelled security?
+        - What if this issue were forced to Highest priority?
       actions:
         - find-issues
         - triage-issue
@@ -60,7 +61,7 @@ modules:
       function: replay-fn
       actionVerb: GET
       description: Re-executes the stored trace for an issue and verifies every step
-        hash matches.
+        hash matches. Returns verdict verified or mismatch.
       inputs:
         issueKey:
           title: Issue key
@@ -71,19 +72,35 @@ modules:
       name: What-if triage rerun
       function: whatif-fn
       actionVerb: GET
-      description: Reruns triage with changed inputs (summary, description, labels,
-        components) and returns a diff against the recorded decision.
+      description: Reruns triage on the stored trace with changed inputs (added or removed
+        labels, a forced priority, or advanced JSON overrides) using the same seed,
+        and returns a before/after diff. Nothing is stored.
       inputs:
         issueKey:
           title: Issue key
           type: string
           required: true
           description: The Jira issue key.
-        overridesJson:
-          title: Overrides (JSON)
+        addLabels:
+          title: Add labels
           type: string
-          required: true
-          description: 'JSON object of fields to override, e.g. {"labels":["security"]}.'
+          required: false
+          description: Comma-separated labels to pretend the issue has, for example security,outage.
+        removeLabels:
+          title: Remove labels
+          type: string
+          required: false
+          description: Comma-separated existing Jira labels to pretend are removed.
+        forcePriority:
+          title: Force priority
+          type: string
+          required: false
+          description: Optional priority to pin instead of scoring. One of Highest, High, Medium, Low, Lowest.
+        overridesJson:
+          title: Advanced overrides (JSON)
+          type: string
+          required: false
+          description: 'Optional JSON object of fields to override: summary, description, labels, components, issueType, forcePriority. Example {"summary":"Checkout is down"}.'
   jira:issuePanel:
     - key: retrace-panel
       resource: panel
