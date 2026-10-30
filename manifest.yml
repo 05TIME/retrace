@@ -6,11 +6,9 @@ modules:
         hash-chained trace.
       prompt: resource:agent-prompt;agent.txt
       conversationStarters:
-        - Triage the newest issue
-        - Triage this issue and record a trace
+        - Triage the newest issue and record a trace
         - Replay the trace for this issue and verify it
         - What if this issue were labelled security?
-        - What if this issue were forced to Highest priority?
       actions:
         - find-issues
         - triage-issue
@@ -90,7 +88,7 @@ modules:
           title: Remove labels
           type: string
           required: false
-          description: Comma-separated existing Jira labels to pretend are removed.
+          description: Comma-separated labels to pretend are removed. Removed labels are also not re-detected from the issue text.
         forcePriority:
           title: Force priority
           type: string

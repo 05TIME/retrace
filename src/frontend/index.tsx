@@ -6,7 +6,7 @@ import ForgeReconciler, {
 import { invoke } from '@forge/bridge';
 import { traceStatus } from '../core/guard';
 
-const VERSION = 'v0.2.0';
+const VERSION = 'v0.3.0';
 const LABEL_CHOICES = ['security', 'outage', 'crash', 'data-loss', 'performance', 'bug', 'ux', 'docs'];
 const PRIORITY_OPTIONS = [
   { label: 'Keep scored priority', value: '' },
@@ -18,6 +18,10 @@ const short = (h?: string | null) => (h ? h.slice(0, 12) : '—');
 const priorityLook = (p: string): 'removed' | 'moved' | 'inprogress' | 'default' | 'success' =>
   p === 'Highest' ? 'removed' : p === 'High' ? 'moved' : p === 'Medium' ? 'inprogress' : p === 'Low' ? 'default' : 'success';
 const show = (v: unknown) => (Array.isArray(v) ? (v.length ? v.join(', ') : 'none') : v === null || v === undefined ? 'none' : String(v));
+
+/** Display-only rewording; hashed trace text must stay byte-identical within an engine version. */
+const displayReason = (r: string) =>
+  r === 'Assignee: no assignable users found.' ? 'Assignee: Unassigned: no assignable users on this project.' : r;
 
 /** Without this, any render error unmounts the tree and the host shows an empty (blank) panel. */
 class Boundary extends React.Component<{ children: React.ReactNode }, { err: string | null }> {
@@ -41,11 +45,11 @@ const Decision = ({ d }: { d: any }) => (
       <Text>Labels</Text>
       {d.labels.length === 0 ? <Text>none</Text> : d.labels.map((l: string) => <Lozenge key={l}>{l}</Lozenge>)}
     </Inline>
-    <Text>Assignee: {d.assigneeName ?? d.assignee ?? 'unassigned'}</Text>
+    <Text>Assignee: {d.assigneeName ?? d.assignee ?? 'Unassigned: no assignable users on this project'}</Text>
     {Array.isArray(d.reasons) && d.reasons.length > 0 && (
       <Stack space="space.050">
         <Heading size="xsmall">Why</Heading>
-        {d.reasons.map((r: string, i: number) => <Text key={i}>• {r}</Text>)}
+        {d.reasons.map((r: string, i: number) => <Text key={i}>• {displayReason(r)}</Text>)}
       </Stack>
     )}
   </Stack>
@@ -58,6 +62,7 @@ const App = () => {
   const [replayRes, setReplayRes] = useState<any>(null);
   const [whatIfRes, setWhatIfRes] = useState<any>(null);
   const [addLabels, setAddLabels] = useState<string[]>([]);
+  const [removeLabels, setRemoveLabels] = useState<string[]>([]);
   const [force, setForce] = useState(PRIORITY_OPTIONS[0]);
   const [advanced, setAdvanced] = useState(false);
   const [json, setJson] = useState('{"summary":"Checkout is down for all users"}');
@@ -91,13 +96,16 @@ const App = () => {
   });
 
   const doWhatIf = () => run(async () => {
-    const payload: any = { addLabels, forcePriority: force.value };
+    const payload: any = { addLabels, removeLabels, forcePriority: force.value };
     if (advanced) payload.overrides = json;
     setWhatIfRes(check(await invoke('whatIf', payload)));
   });
 
-  const toggleLabel = (l: string, on: boolean) =>
-    setAddLabels((cur) => (on ? [...new Set([...cur, l])].sort() : cur.filter((x) => x !== l)));
+  const toggleIn = (set: typeof setAddLabels) => (l: string, on: boolean) =>
+    set((cur) => (on ? [...new Set([...cur, l])].sort() : cur.filter((x) => x !== l)));
+  const toggleLabel = toggleIn(setAddLabels);
+  const toggleRemove = toggleIn(setRemoveLabels);
+  const resetWhatIf = () => { setAddLabels([]); setRemoveLabels([]); setForce(PRIORITY_OPTIONS[0]); setAdvanced(false); setWhatIfRes(null); };
 
   return (
     <Stack space="space.200">
@@ -147,6 +155,15 @@ const App = () => {
                 onChange={(e: any) => toggleLabel(l, Boolean(e?.target?.checked))} />
             ))}
           </Inline>
+          {trace.decision.labels.length > 0 && (<>
+            <Text>Pretend these detected labels were removed:</Text>
+            <Inline space="space.100" shouldWrap>
+              {trace.decision.labels.map((l: string) => (
+                <Checkbox key={`rm-${l}`} label={l} value={l} isChecked={removeLabels.includes(l)}
+                  onChange={(e: any) => toggleRemove(l, Boolean(e?.target?.checked))} />
+              ))}
+            </Inline>
+          </>)}
           <Label labelFor="retrace-force">Priority</Label>
           <Select inputId="retrace-force" options={PRIORITY_OPTIONS} value={force} onChange={(o: any) => setForce(o ?? PRIORITY_OPTIONS[0])} />
           <Inline space="space.100" alignBlock="center">
@@ -154,7 +171,10 @@ const App = () => {
             <Label labelFor="retrace-adv">Advanced: JSON overrides</Label>
           </Inline>
           {advanced && <TextArea name="overrides" value={json} onChange={(e: any) => setJson(e.target.value)} />}
-          <Button isDisabled={busy} onClick={doWhatIf}>Run what-if</Button>
+          <ButtonGroup>
+            <Button isDisabled={busy} onClick={doWhatIf}>Run what-if</Button>
+            <Button appearance="subtle" isDisabled={busy} onClick={resetWhatIf}>Reset</Button>
+          </ButtonGroup>
         </Stack>
       )}
 
@@ -162,8 +182,9 @@ const App = () => {
       {whatIfRes?.found && (
         <Stack space="space.100">
           <Heading size="small">What-if result</Heading>
+          <Text>Applied: {Array.isArray(whatIfRes.appliedSummary) && whatIfRes.appliedSummary.length ? whatIfRes.appliedSummary.join('; ') : 'nothing (no overrides chosen)'}</Text>
           {whatIfRes.diff.length === 0
-            ? <SectionMessage appearance="information"><Text>No change: the decision would be the same.</Text></SectionMessage>
+            ? <SectionMessage appearance="information"><Text>No change: the overrides above matched the current decision, so priority, labels and assignee stay the same.</Text></SectionMessage>
             : whatIfRes.diff.map((d: any) => (
               <Inline key={d.field} space="space.100" alignBlock="center" shouldWrap>
                 <Text>{d.field}:</Text>
