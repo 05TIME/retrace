@@ -1,5 +1,6 @@
 import { parseOverrides, replay, runTriage, whatIf } from './core';
-import { fetchCandidates, fetchIssue } from './storage/jira';
+import { fetchCandidates, fetchIssue, searchIssues } from './storage/jira';
+import type { FindIssuesParams } from './core';
 import { loadTrace, saveTrace } from './storage/traces';
 
 const ISSUE_KEY = /^[A-Z][A-Z0-9_]+-\d+$/;
@@ -14,7 +15,7 @@ export async function triage(issueKey: unknown, seed?: number) {
   const input = { issue: await fetchIssue(k), candidates: await fetchCandidates(k), seed };
   const trace = runTriage(input, () => new Date().toISOString());
   await saveTrace({ trace, input: { ...input, seed: trace.seed } });
-  return trace;
+  return { ...trace, issueKeyUsed: k };
 }
 
 export async function replayLatest(issueKey: unknown) {
@@ -33,4 +34,9 @@ export async function whatIfLatest(issueKey: unknown, overrides: unknown) {
 
 export async function latest(issueKey: unknown) {
   return (await loadTrace(checkKey(issueKey)))?.trace ?? null;
+}
+
+export async function findIssues(p: FindIssuesParams) {
+  const r = await searchIssues(p);
+  return { count: r.issues.length, jql: r.jql, issues: r.issues };
 }

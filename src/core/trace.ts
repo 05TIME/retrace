@@ -157,3 +157,5 @@ export function whatIf(trace: Trace, input: TriageInput, overrides: IssueOverrid
   );
   return { alt, diff: diffDecisions(trace.decision, alt.decision) };
 }
+
+export { isTrace } from './guard';

@@ -1,8 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import ForgeReconciler, {
-  Button, ButtonGroup, Code, Heading, Inline, Lozenge, SectionMessage, Stack, Text, TextArea,
+  Button, ButtonGroup, Code, Heading, Inline, Lozenge, SectionMessage, Spinner, Stack, Text, TextArea,
 } from '@forge/react';
 import { invoke } from '@forge/bridge';
+import { isTrace } from '../core/guard';
+
+const errText = (v: any) => (v && typeof v === 'object' && typeof v.error === 'string' ? v.error : null);
+
+/** Without this, any render error unmounts the tree and the host shows an empty (blank) panel. */
+class Boundary extends React.Component<{ children: React.ReactNode }, { err: string | null }> {
+  state = { err: null as string | null };
+  static getDerivedStateFromError(e: Error) { return { err: e?.message ?? String(e) }; }
+  componentDidCatch(e: Error) { console.error('retrace panel render error', e); }
+  render() {
+    return this.state.err
+      ? <SectionMessage appearance="error"><Text>Retrace panel error: {this.state.err}</Text></SectionMessage>
+      : this.props.children;
+  }
+}
 
 const short = (h?: string) => (h ? h.slice(0, 12) : '—');
 
@@ -12,6 +27,7 @@ const App = () => {
   const [whatIfRes, setWhatIfRes] = useState<any>(null);
   const [overrides, setOverrides] = useState('{"labels":["security"]}');
   const [busy, setBusy] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const run = async (fn: () => Promise<void>) => {
@@ -19,17 +35,25 @@ const App = () => {
     try { await fn(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   };
 
-  useEffect(() => { run(async () => setTrace(await invoke('getTrace'))); }, []);
+  const accept = (v: any) => {
+    const e = errText(v);
+    if (e) throw new Error(e);
+    if (v !== null && v !== undefined && !isTrace(v)) throw new Error('Unexpected trace format from resolver');
+    setTrace(v ?? null);
+  };
+
+  useEffect(() => { run(async () => accept(await invoke('getTrace'))).finally(() => setLoaded(true)); }, []);
 
   return (
     <Stack space="space.200">
       {error && <SectionMessage appearance="error"><Text>{error}</Text></SectionMessage>}
       <ButtonGroup>
-        <Button appearance="primary" isDisabled={busy} onClick={() => run(async () => { setTrace(await invoke('triage')); setReplayRes(null); setWhatIfRes(null); })}>Triage + record</Button>
+        <Button appearance="primary" isDisabled={busy} onClick={() => run(async () => { accept(await invoke('triage')); setReplayRes(null); setWhatIfRes(null); })}>Triage + record</Button>
         <Button isDisabled={busy || !trace} onClick={() => run(async () => setReplayRes(await invoke('replay')))}>Replay</Button>
         <Button isDisabled={busy || !trace} onClick={() => run(async () => setWhatIfRes(await invoke('whatIf', { overrides })))}>What-if</Button>
       </ButtonGroup>
-      {!trace && <Text>No trace yet for this issue.</Text>}
+      {!loaded && <Inline space="space.100"><Spinner size="small" /><Text>Loading Retrace trace…</Text></Inline>}
+      {loaded && !trace && <Text>No trace yet for this issue.</Text>}
       {trace && (
         <Stack space="space.100">
           <Heading size="small">Decision</Heading>
@@ -50,7 +74,7 @@ const App = () => {
         </SectionMessage>
       )}
       <TextArea name="overrides" value={overrides} onChange={(e: any) => setOverrides(e.target.value)} />
-      {whatIfRes?.found && (
+      {whatIfRes?.found && Array.isArray(whatIfRes.diff) && (
         <Stack space="space.050">
           <Heading size="small">What-if diff</Heading>
           {whatIfRes.diff.length === 0 && <Text>No change in outcome.</Text>}
@@ -59,8 +83,9 @@ const App = () => {
           ))}
         </Stack>
       )}
+      <Text>Retrace panel v0.1.1</Text>
     </Stack>
   );
 };
 
-ForgeReconciler.render(<React.StrictMode><App /></React.StrictMode>);
+ForgeReconciler.render(<React.StrictMode><Boundary><App /></Boundary></React.StrictMode>);
