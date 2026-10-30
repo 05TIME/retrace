@@ -6,14 +6,38 @@ modules:
         hash-chained trace.
       prompt: resource:agent-prompt;agent.txt
       conversationStarters:
+        - Triage the newest issue
         - Triage this issue and record a trace
         - Replay the latest trace for this issue
         - What if this issue were labelled security?
       actions:
+        - find-issues
         - triage-issue
         - replay-trace
         - what-if-trace
   action:
+    - key: find-issues
+      name: Find recent issues
+      function: find-fn
+      actionVerb: GET
+      description: Lists real Jira issue keys and summaries, newest first, using a
+        JQL search. Use this before triage whenever the exact issue key is not known.
+      inputs:
+        project:
+          title: Project key
+          type: string
+          required: false
+          description: Optional Jira project key to restrict the search, for example MOBL.
+        text:
+          title: Text
+          type: string
+          required: false
+          description: Optional words to match in the issue summary or description.
+        maxResults:
+          title: Max results
+          type: integer
+          required: false
+          description: How many issues to return (1-20, default 10).
     - key: triage-issue
       name: Triage issue with trace
       function: triage-fn
@@ -78,6 +102,8 @@ modules:
       label: Retrace trace
       icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
   function:
+    - key: find-fn
+      handler: actions/index.findIssuesHandler
     - key: triage-fn
       handler: actions/index.triageHandler
     - key: replay-fn
