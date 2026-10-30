@@ -98,3 +98,16 @@ An open-source agent skill lives at [`skills/retrace-triage/SKILL.md`](skills/re
 4. Optionally add `skills/retrace-triage/SKILL.md` to your agent, then ask: "Triage the newest issue in project KAN, then replay it."
 
 **Use it in Rovo Studio:** create a custom agent and add the Retrace MCP tools.
+
+## Install (judges and testers)
+
+Use the **[Retrace install link](https://developer.atlassian.com/console/install/2b9b66b6-b31e-4dcd-810f-9b73f6cf9015?signature=AYABeJPb8rNvI0JRhkbPWPL6fcIAAAADAAdhd3Mta21zAEthcm46YXdzOmttczp1cy13ZXN0LTI6NzA5NTg3ODM1MjQzOmtleS83MDVlZDY3MC1mNTdjLTQxYjUtOWY5Yi1lM2YyZGNjMTQ2ZTcAuAECAQB4CxqLTo9l4lqXuFjNim1xJM%2Bp%2F3TVP9xHS2BrU5DRRucB3XXQNZsR5754IU%2BGMj7HUAAAAH4wfAYJKoZIhvcNAQcGoG8wbQIBADBoBgkqhkiG9w0BBwEwHgYJYIZIAWUDBAEuMBEEDOWE4hdSLjHnL9OMdgIBEIA79Vg%2BcPAKMA3CVkbRTYiVWHykEdm%2BUFMEl9UwRjn3fZO%2FXZLewTwpXb5NiQSEf6QJ1V0amZpaED360RkAB2F3cy1rbXMAS2Fybjphd3M6a21zOmV1LXdlc3QtMTo3MDk1ODc4MzUyNDM6a2V5LzQ2MzBjZTZiLTAwYzMtNGRlMi04NzdiLTYyN2UyMDYwZTVjYwC4AQICAHi9bVMAkme4qVQX1fQHo6ePw3H40A7cGfz7yrmSfBWMXgElEBlFlAcBEXe1uje7%2FMMkAAAAfjB8BgkqhkiG9w0BBwagbzBtAgEAMGgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMhiDuGf88YsuYXcwmAgEQgDucoI29afF72AhJEhlNVFSCN4BmQAxFWaVzZWx5jsMZdkwRy7sWubY05OnXnZ0kD6Wi0AhmHd%2FoQyVlsgAHYXdzLWttcwBLYXJuOmF3czprbXM6dXMtZWFzdC0xOjcwOTU4NzgzNTI0MzprZXkvNmMxMjBiYTAtNGNkNS00OTg1LWI4MmUtNDBhMDQ5NTJjYzU3ALgBAgIAeDYASx0XCjkny4iLV6vz%2BKtEGSGT6kdt0QRpkn6D%2FlVEAWYO%2F0TtZ4JN6Sj4N6u3bkwAAAB%2BMHwGCSqGSIb3DQEHBqBvMG0CAQAwaAYJKoZIhvcNAQcBMB4GCWCGSAFlAwQBLjARBAwTIxOV3iMFBRifFqECARCAO8pjvTcn5e4KfW0GV8CD5MT4rs%2FsbNI2i6p4WYEMAsVXnaK8KxU8lie2wuppUk3ODllswk6Cer621pcKAgAAAAAMAAAQAAAAAAAAAAAAAAAAAF5bsMyVmuTJSsg0gjZTW83%2F%2F%2F%2F%2FAAAAAQAAAAAAAAAAAAAAAQAAADKfWFD%2BTdlm7yZflZj%2FIcYEt7aPjEPbStzjTi0EWqJtJ9SSJD3aI1A1q1x%2B9vL0lrpPEyBy1Nt4Q9m3QE7eMM2UqRg%3D&product=jira)** (steps in [docs/judges.md](docs/judges.md#install-retrace)) (site admin required). Developers can instead run `forge deploy -e development && forge install`.
+
+## Privacy
+
+Retrace stores one trace per triaged issue in Atlassian-hosted Forge storage. A trace contains the issue key, summary, description, labels, components and type, plus the Atlassian account IDs and display names of the project's assignable users (used for the assignee suggestion).
+
+- No data leaves Atlassian: no external egress and no third parties.
+- Retention: a trace is kept until the issue is triaged again (replaced) or the app is uninstalled.
+- Read-only and advisory: Retrace never edits issues.
+- Contact: randyidaeho7@gmail.com
