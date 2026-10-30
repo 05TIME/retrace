@@ -6,7 +6,7 @@ import ForgeReconciler, {
 import { invoke } from '@forge/bridge';
 import { traceStatus } from '../core/guard';
 
-const VERSION = 'v0.3.0';
+const VERSION = 'v0.3.1';
 const LABEL_CHOICES = ['security', 'outage', 'crash', 'data-loss', 'performance', 'bug', 'ux', 'docs'];
 const PRIORITY_OPTIONS = [
   { label: 'Keep scored priority', value: '' },
@@ -126,12 +126,13 @@ const App = () => {
 
       {replayRes && (replayRes.found ? (
         <SectionMessage appearance={replayRes.ok ? 'success' : 'error'}>
-          <Inline space="space.100" alignBlock="center">
+          {/* Stack, not Inline: in a narrow panel the long text squeezed the lozenge to "Veri…". */}
+          <Stack space="space.100">
             <Lozenge appearance={replayRes.ok ? 'success' : 'removed'} isBold>{replayRes.ok ? 'Verified' : 'Mismatch'}</Lozenge>
             <Text>{replayRes.ok
               ? `Re-ran all ${replayRes.steps} steps; every hash matched (${short(replayRes.rootHash)}).`
               : `Diverged at step ${replayRes.divergedAt}: ${replayRes.reason}`}</Text>
-          </Inline>
+          </Stack>
         </SectionMessage>
       ) : <SectionMessage appearance="information"><Text>{replayRes.note}</Text></SectionMessage>)}
 
