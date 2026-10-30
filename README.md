@@ -84,3 +84,17 @@ License: MIT
 ## What-if: removing labels
 
 Removing a label in a what-if (panel checkbox or Rovo `removeLabels`) also stops the scorer from re-detecting it in the issue text. The suppressed labels are recorded in the `detect-labels` step input, so what-if hashes stay deterministic; normal traces (no removals) hash exactly as before.
+
+## MCP server and skill (Atlassian MCP)
+
+Retrace exposes its four actions as MCP tools through a `rovo:mcp` module (**Retrace MCP**): `find-issues`, `triage-issue`, `replay-trace`, `what-if-trace`. The same handlers back the Rovo agent, the issue panel and MCP, so traces are identical whichever surface you use.
+
+An open-source agent skill lives at [`skills/retrace-triage/SKILL.md`](skills/retrace-triage/SKILL.md). It is packaged as a `rovo:skill` (used by the Retrace Triage agent) and can be copied into any third-party agent that supports `SKILL.md`.
+
+**Use it from an MCP client (Claude, Cursor, VS Code…):**
+1. A site admin enables it: admin.atlassian.com → Apps → Sites → your site → Connected apps → Retrace → turn on the tools.
+2. Add the remote MCP server `https://mcp.atlassian.com/forge/2b9b66b6-b31e-4dcd-810f-9b73f6cf9015` to your client.
+3. Approve the OAuth consent screen and pick the site. Tools run with your own Jira permissions.
+4. Optionally add `skills/retrace-triage/SKILL.md` to your agent, then ask: "Triage the newest issue in project KAN, then replay it."
+
+**Use it in Rovo Studio:** create a custom agent and add the Retrace MCP tools.
