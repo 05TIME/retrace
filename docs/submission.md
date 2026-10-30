@@ -20,7 +20,8 @@ Apps for Software Teams
 - **Repository (public, MIT):** https://github.com/05TIME/retrace
 - **Testing instructions:** https://github.com/05TIME/retrace/blob/main/docs/judges.md
 - **Agent skill (open source):** https://github.com/05TIME/retrace/blob/main/skills/retrace-triage/SKILL.md
-- **Video (YouTube, public, under 5 min):** `<VIDEO_URL>` ✋
+- **Video (YouTube, public, under 5 min):** https://youtu.be/bnv9z-HhGXI
+- **Devpost submission:** https://devpost.com/software/retrace-6i7jep (submitted 2026-10-30; editable until Dec 22)
 
 ## Built with
 forge, atlassian-forge, jira, rovo, rovo-agents, rovo-mcp, mcp, ui-kit, forge-storage, typescript, react, node.js, vitest

@@ -134,3 +134,19 @@ export function pickAssignee(labels: string[], issue: IssueInput, candidates: Ca
     tied: tied.length,
   };
 }
+
+/** Merge user lists from Jira into deduped, active, human candidates. Order-independent (sorted by accountId). */
+export function mergeCandidates(...lists: any[][]): Candidate[] {
+  const byId = new Map<string, Candidate>();
+  for (const list of lists) {
+    for (const u of list ?? []) {
+      if (!u || typeof u.accountId !== 'string' || !u.accountId) continue;
+      if (u.accountType && u.accountType !== 'atlassian') continue;
+      if (u.active === false) continue;
+      if (!byId.has(u.accountId)) {
+        byId.set(u.accountId, { accountId: u.accountId, displayName: u.displayName ?? u.accountId, skills: [], openIssues: 0 });
+      }
+    }
+  }
+  return [...byId.values()].sort((a, b) => a.accountId.localeCompare(b.accountId));
+}
