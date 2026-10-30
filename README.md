@@ -80,3 +80,7 @@ Then open any Jira issue, find **Retrace trace** in the sidebar, and click **Tri
 See [docs/demo-script.md](docs/demo-script.md) and [docs/judges.md](docs/judges.md).
 
 License: MIT
+
+## What-if: removing labels
+
+Removing a label in a what-if (panel checkbox or Rovo `removeLabels`) also stops the scorer from re-detecting it in the issue text. The suppressed labels are recorded in the `detect-labels` step input, so what-if hashes stay deterministic; normal traces (no removals) hash exactly as before.

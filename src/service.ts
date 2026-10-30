@@ -1,4 +1,4 @@
-import { buildOverrides, replay, runTriage, traceStatus, whatIf, type WhatIfControls } from './core';
+import { buildOverrides, describeOverrides, replay, runTriage, traceStatus, whatIf, type WhatIfControls } from './core';
 import { fetchCandidates, fetchIssue, searchIssues } from './storage/jira';
 import type { FindIssuesParams } from './core';
 import { loadTrace, saveTrace, type StoredTrace } from './storage/traces';
@@ -68,6 +68,8 @@ export async function whatIfLatest(issueKey: unknown, controls: WhatIfControls) 
     found: true as const,
     issueKey: k,
     applied: overrides,
+    appliedSummary: describeOverrides(overrides, stored.input.issue),
+    unchanged: diff.length === 0,
     original: stored.trace.decision,
     alternative: alt.decision,
     diff,

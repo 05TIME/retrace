@@ -63,7 +63,12 @@ export interface Detection {
   reasons: string[];
 }
 
-export function detectLabels(issue: IssueInput): Detection {
+/**
+ * `suppress` (what-if only) drops rules entirely, so a removed label stays removed even when
+ * the scorer would otherwise find it in the text. Order-insensitive and lowercased for determinism.
+ */
+export function detectLabels(issue: IssueInput, suppress: readonly string[] = []): Detection {
+  const off = new Set(suppress.map((l) => l.toLowerCase()));
   const text = normalizeText(issue);
   const existing = new Set(issue.labels.map((l) => l.toLowerCase()));
   const type = issue.issueType.toLowerCase();
@@ -72,6 +77,10 @@ export function detectLabels(issue: IssueInput): Detection {
   let score = TYPE_BASE[type] ?? 1;
   reasons.push(`Issue type "${issue.issueType}" starts at ${score}.`);
   for (const rule of RULES) {
+    if (off.has(rule.label)) {
+      reasons.push(`${rule.label}: removed in what-if, not scored.`);
+      continue;
+    }
     const hits = rule.words.filter((w) => hit(text, w)).map(bare);
     const tagged = existing.has(rule.label);
     const typeBug = rule.label === 'bug' && type === 'bug';
@@ -107,7 +116,7 @@ export function isPriority(v: unknown): v is Priority {
 /** Pick assignee by skill overlap, then lowest load; remaining ties broken by the seeded RNG. */
 export function pickAssignee(labels: string[], issue: IssueInput, candidates: Candidate[], rng: Rng) {
   if (candidates.length === 0) {
-    return { accountId: null as string | null, displayName: null as string | null, reason: 'no assignable users found', tied: 0 };
+    return { accountId: null as string | null, displayName: null as string | null, reason: 'no assignable users on this project, so left unassigned', tied: 0 };
   }
   const tags = new Set([...labels, ...issue.components.map((c) => c.toLowerCase())]);
   const scored = [...candidates]

@@ -40,6 +40,8 @@ export interface TriageInput {
   seed?: number;
   /** What-if only: pin the priority instead of scoring it. Recorded in the trace. */
   forcePriority?: Priority;
+  /** What-if only: labels removed by the user; the scorer will not re-detect them. Recorded in the trace. */
+  suppressLabels?: string[];
 }
 
 function stepHash(prevHash: string, index: number, name: string, input: unknown, output: unknown): string {
@@ -65,7 +67,13 @@ export function runTriage(input: TriageInput, now: () => string = () => new Date
     return out;
   };
 
-  const det = record('detect-labels', { issue: input.issue }, detectLabels(input.issue)) as ReturnType<typeof detectLabels>;
+  const suppress = [...new Set((input.suppressLabels ?? []).map((l) => l.toLowerCase()))].sort();
+  // Only include suppressLabels in the step input when used, so normal traces keep their existing hashes.
+  const det = record(
+    'detect-labels',
+    suppress.length ? { issue: input.issue, suppressLabels: suppress } : { issue: input.issue },
+    detectLabels(input.issue, suppress),
+  ) as ReturnType<typeof detectLabels>;
   const forced = input.forcePriority;
   const priority = record(
     'score-priority',
@@ -148,7 +156,7 @@ export function diffDecisions(a: Decision, b: Decision): FieldDiff[] {
   return out;
 }
 
-export type IssueOverrides = Partial<Omit<IssueInput, 'key'>> & { forcePriority?: Priority };
+export type IssueOverrides = Partial<Omit<IssueInput, 'key'>> & { forcePriority?: Priority; suppressLabels?: string[] };
 
 const OVERRIDABLE = ['summary', 'description', 'labels', 'components', 'issueType', 'forcePriority'] as const;
 
@@ -174,9 +182,9 @@ export function parseOverrides(raw: unknown): IssueOverrides {
 
 /** Counterfactual rerun with the same seed, so only the overridden inputs can change the outcome. */
 export function whatIf(trace: Trace, input: TriageInput, overrides: IssueOverrides) {
-  const { forcePriority, ...issueOverrides } = overrides;
+  const { forcePriority, suppressLabels, ...issueOverrides } = overrides;
   const alt = runTriage(
-    { issue: { ...input.issue, ...issueOverrides }, candidates: input.candidates, seed: trace.seed, forcePriority },
+    { issue: { ...input.issue, ...issueOverrides }, candidates: input.candidates, seed: trace.seed, forcePriority, suppressLabels },
     () => trace.recordedAt,
   );
   return { alt, diff: diffDecisions(trace.decision, alt.decision) };
@@ -204,9 +212,27 @@ export function buildOverrides(base: IssueInput, c: WhatIfControls): IssueOverri
     const start = raw.labels ?? base.labels;
     out.labels = [...new Set([...start.map((l) => l.toLowerCase()), ...add])].filter((l) => !remove.has(l)).sort();
   }
+  if (remove.size) out.suppressLabels = [...remove].filter((l) => !add.includes(l)).sort();
   if (c.forcePriority !== undefined && c.forcePriority !== '') {
     if (!isPriority(c.forcePriority)) throw new TypeError('forcePriority must be one of Highest, High, Medium, Low, Lowest');
     out.forcePriority = c.forcePriority;
+  }
+  return out;
+}
+
+/** Plain-language list of what a what-if changed, so "No change" can still say what was tried. */
+export function describeOverrides(o: IssueOverrides, base?: IssueInput): string[] {
+  const out: string[] = [];
+  if (o.labels) {
+    const before = new Set((base?.labels ?? []).map((l) => l.toLowerCase()));
+    const added = o.labels.filter((l) => !before.has(l.toLowerCase()));
+    if (added.length) out.push(`added labels: ${added.join(', ')}`);
+    else if (!o.suppressLabels?.length) out.push(`labels set to: ${o.labels.length ? o.labels.join(', ') : 'none'}`);
+  }
+  if (o.suppressLabels?.length) out.push(`removed labels: ${o.suppressLabels.join(', ')}`);
+  if (o.forcePriority) out.push(`forced priority: ${o.forcePriority}`);
+  for (const k of ['summary', 'description', 'issueType', 'components'] as const) {
+    if (o[k] !== undefined) out.push(`${k} overridden`);
   }
   return out;
 }
