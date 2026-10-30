@@ -10,6 +10,8 @@ Same inputs → same hash, every time.
 
 ## Architecture
 
+![Retrace architecture](docs/architecture.png)
+
 ```mermaid
 flowchart LR
   U[User in Jira] -->|chat| R[Rovo: Retrace Triage agent]
