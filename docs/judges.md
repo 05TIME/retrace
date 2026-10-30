@@ -1,11 +1,17 @@
 # For Codegeist judges
 
-> Placeholder. The install link and test site details will be added before submission.
+Retrace is a Forge app for Jira Cloud. It needs no configuration, API keys or external services.
 
 ## Install Retrace
-1. Open the install link: **TBD (to be added)**.
-2. Choose your Jira Cloud site and approve the requested scopes (`read:jira-work`, `storage:app`).
-3. For the Rovo agent, use a site with Rovo enabled.
+1. Open the install link: **`<INSTALL_LINK>`** <!-- TODO: paste the link from Developer console → Retrace → Distribution (status: Sharing) -->
+2. You must be a **site admin**. Pick your Jira Cloud site, select **Jira**, review the permissions (`read:jira-work`, `storage:app`; no external egress) and choose **Install**.
+3. Open any Jira issue. The **Retrace** sidebar section (issue context, "Retrace trace") appears on the right; click it to expand.
+4. Rovo agent and Rovo Studio: the site must have Rovo enabled. Open Rovo chat → agents → **Retrace Triage**.
+5. MCP clients (optional): an admin enables external MCP for Retrace under admin.atlassian.com → Apps → Sites → *site* → Connected apps → Retrace (see "Try the MCP surface" below).
+
+If you need a fresh site, a free Jira Cloud developer site works for the panel. Rovo needs a Rovo-enabled site.
+
+**What Retrace stores:** one trace per triaged issue in Forge storage (KVS, hosted by Atlassian). A trace contains the issue key, summary, description, labels, components and type, plus the assignable users' Atlassian account IDs and display names used for the assignee suggestion. Nothing leaves Atlassian, and Retrace never edits issues. Uninstalling removes the stored data.
 
 ## Try it in 2 minutes
 1. Open any Jira issue and click **Retrace trace** in the sidebar.

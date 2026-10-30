@@ -98,3 +98,7 @@ An open-source agent skill lives at [`skills/retrace-triage/SKILL.md`](skills/re
 4. Optionally add `skills/retrace-triage/SKILL.md` to your agent, then ask: "Triage the newest issue in project KAN, then replay it."
 
 **Use it in Rovo Studio:** create a custom agent and add the Retrace MCP tools.
+
+## Install (judges and testers)
+
+Use the production install link in [docs/judges.md](docs/judges.md#install-retrace) (site admin required). Developers can instead run `forge deploy -e development && forge install`.
