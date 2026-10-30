@@ -1,11 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import ForgeReconciler, {
-  Button, ButtonGroup, Code, Heading, Inline, Lozenge, SectionMessage, Spinner, Stack, Text, TextArea,
+  Badge, Button, ButtonGroup, Checkbox, Code, Heading, Inline, Label, Lozenge, SectionMessage, Select, Spinner, Stack,
+  Text, TextArea, Toggle,
 } from '@forge/react';
 import { invoke } from '@forge/bridge';
-import { isTrace } from '../core/guard';
+import { traceStatus } from '../core/guard';
+
+const VERSION = 'v0.2.0';
+const LABEL_CHOICES = ['security', 'outage', 'crash', 'data-loss', 'performance', 'bug', 'ux', 'docs'];
+const PRIORITY_OPTIONS = [
+  { label: 'Keep scored priority', value: '' },
+  ...['Highest', 'High', 'Medium', 'Low', 'Lowest'].map((p) => ({ label: `Force ${p}`, value: p })),
+];
 
 const errText = (v: any) => (v && typeof v === 'object' && typeof v.error === 'string' ? v.error : null);
+const short = (h?: string | null) => (h ? h.slice(0, 12) : '—');
+const priorityLook = (p: string): 'removed' | 'moved' | 'inprogress' | 'default' | 'success' =>
+  p === 'Highest' ? 'removed' : p === 'High' ? 'moved' : p === 'Medium' ? 'inprogress' : p === 'Low' ? 'default' : 'success';
+const show = (v: unknown) => (Array.isArray(v) ? (v.length ? v.join(', ') : 'none') : v === null || v === undefined ? 'none' : String(v));
 
 /** Without this, any render error unmounts the tree and the host shows an empty (blank) panel. */
 class Boundary extends React.Component<{ children: React.ReactNode }, { err: string | null }> {
@@ -19,13 +31,36 @@ class Boundary extends React.Component<{ children: React.ReactNode }, { err: str
   }
 }
 
-const short = (h?: string) => (h ? h.slice(0, 12) : '—');
+const Decision = ({ d }: { d: any }) => (
+  <Stack space="space.100">
+    <Inline space="space.100" alignBlock="center">
+      <Text>Priority</Text>
+      <Lozenge appearance={priorityLook(d.priority)} isBold>{d.priority}</Lozenge>
+    </Inline>
+    <Inline space="space.100" alignBlock="center" shouldWrap>
+      <Text>Labels</Text>
+      {d.labels.length === 0 ? <Text>none</Text> : d.labels.map((l: string) => <Lozenge key={l}>{l}</Lozenge>)}
+    </Inline>
+    <Text>Assignee: {d.assigneeName ?? d.assignee ?? 'unassigned'}</Text>
+    {Array.isArray(d.reasons) && d.reasons.length > 0 && (
+      <Stack space="space.050">
+        <Heading size="xsmall">Why</Heading>
+        {d.reasons.map((r: string, i: number) => <Text key={i}>• {r}</Text>)}
+      </Stack>
+    )}
+  </Stack>
+);
 
 const App = () => {
   const [trace, setTrace] = useState<any>(null);
+  const [legacy, setLegacy] = useState(false);
+  const [notice, setNotice] = useState<{ kind: 'success' | 'information'; text: string } | null>(null);
   const [replayRes, setReplayRes] = useState<any>(null);
   const [whatIfRes, setWhatIfRes] = useState<any>(null);
-  const [overrides, setOverrides] = useState('{"labels":["security"]}');
+  const [addLabels, setAddLabels] = useState<string[]>([]);
+  const [force, setForce] = useState(PRIORITY_OPTIONS[0]);
+  const [advanced, setAdvanced] = useState(false);
+  const [json, setJson] = useState('{"summary":"Checkout is down for all users"}');
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,56 +69,113 @@ const App = () => {
     setBusy(true); setError(null);
     try { await fn(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   };
+  const check = (v: any) => { const e = errText(v); if (e) throw new Error(e); return v; };
 
-  const accept = (v: any) => {
-    const e = errText(v);
-    if (e) throw new Error(e);
-    if (v !== null && v !== undefined && !isTrace(v)) throw new Error('Unexpected trace format from resolver');
-    setTrace(v ?? null);
+  const load = async () => {
+    const v = check(await invoke('getTrace'));
+    // Accept both the current {trace, legacy} shape and a bare trace from older resolvers.
+    const t = v && typeof v === 'object' && 'trace' in v ? v.trace : v;
+    const st = traceStatus(t);
+    setTrace(st === 'current' ? t : null);
+    setLegacy(Boolean(v?.legacy) || st === 'legacy');
   };
 
-  useEffect(() => { run(async () => accept(await invoke('getTrace'))).finally(() => setLoaded(true)); }, []);
+  useEffect(() => { run(load).finally(() => setLoaded(true)); }, []);
+
+  const doTriage = () => run(async () => {
+    const t = check(await invoke('triage'));
+    setTrace(t); setLegacy(false); setReplayRes(null); setWhatIfRes(null);
+    setNotice(t.unchanged
+      ? { kind: 'information', text: `Unchanged: same inputs → same hash ${short(t.rootHash)}. That's determinism.` }
+      : { kind: 'success', text: `Recorded new trace. Root hash ${short(t.rootHash)}${t.previousRootHash ? ` (was ${short(t.previousRootHash)}; the issue changed)` : ''}.` });
+  });
+
+  const doWhatIf = () => run(async () => {
+    const payload: any = { addLabels, forcePriority: force.value };
+    if (advanced) payload.overrides = json;
+    setWhatIfRes(check(await invoke('whatIf', payload)));
+  });
+
+  const toggleLabel = (l: string, on: boolean) =>
+    setAddLabels((cur) => (on ? [...new Set([...cur, l])].sort() : cur.filter((x) => x !== l)));
 
   return (
     <Stack space="space.200">
       {error && <SectionMessage appearance="error"><Text>{error}</Text></SectionMessage>}
       <ButtonGroup>
-        <Button appearance="primary" isDisabled={busy} onClick={() => run(async () => { accept(await invoke('triage')); setReplayRes(null); setWhatIfRes(null); })}>Triage + record</Button>
-        <Button isDisabled={busy || !trace} onClick={() => run(async () => setReplayRes(await invoke('replay')))}>Replay</Button>
-        <Button isDisabled={busy || !trace} onClick={() => run(async () => setWhatIfRes(await invoke('whatIf', { overrides })))}>What-if</Button>
+        <Button appearance="primary" isDisabled={busy} onClick={doTriage}>Triage + record</Button>
+        <Button isDisabled={busy || !trace} onClick={() => run(async () => setReplayRes(check(await invoke('replay'))))}>Replay</Button>
       </ButtonGroup>
+      {busy && <Inline space="space.100"><Spinner size="small" /><Text>Working…</Text></Inline>}
+      {notice && <SectionMessage appearance={notice.kind}><Text>{notice.text}</Text></SectionMessage>}
       {!loaded && <Inline space="space.100"><Spinner size="small" /><Text>Loading Retrace trace…</Text></Inline>}
-      {loaded && !trace && <Text>No trace yet for this issue.</Text>}
+      {loaded && legacy && !trace && (
+        <SectionMessage appearance="information">
+          <Text>This issue has a trace from an older Retrace version. Click "Triage + record" to make a fresh one.</Text>
+        </SectionMessage>
+      )}
+      {loaded && !legacy && !trace && <Text>No trace yet. Click "Triage + record" to triage this issue.</Text>}
+
+      {replayRes && (replayRes.found ? (
+        <SectionMessage appearance={replayRes.ok ? 'success' : 'error'}>
+          <Inline space="space.100" alignBlock="center">
+            <Lozenge appearance={replayRes.ok ? 'success' : 'removed'} isBold>{replayRes.ok ? 'Verified' : 'Mismatch'}</Lozenge>
+            <Text>{replayRes.ok
+              ? `Re-ran all ${replayRes.steps} steps; every hash matched (${short(replayRes.rootHash)}).`
+              : `Diverged at step ${replayRes.divergedAt}: ${replayRes.reason}`}</Text>
+          </Inline>
+        </SectionMessage>
+      ) : <SectionMessage appearance="information"><Text>{replayRes.note}</Text></SectionMessage>)}
+
       {trace && (
         <Stack space="space.100">
           <Heading size="small">Decision</Heading>
-          <Inline space="space.100">
-            <Lozenge appearance="moved">{trace.decision.priority}</Lozenge>
-            {trace.decision.labels.map((l: string) => <Lozenge key={l}>{l}</Lozenge>)}
-          </Inline>
-          <Text>Assignee: {trace.decision.assignee ?? 'none'} · seed {trace.seed} · root <Code>{short(trace.rootHash)}</Code></Text>
+          <Decision d={trace.decision} />
           <Heading size="small">Trace</Heading>
           {trace.steps.map((s: any) => (
-            <Text key={s.index}>{s.index}. {s.name} → <Code>{short(s.hash)}</Code></Text>
+            <Inline key={s.index} space="space.100" alignBlock="center">
+              <Badge>{s.index}</Badge><Text>{s.name}</Text><Code>{short(s.hash)}</Code>
+            </Inline>
           ))}
+          <Text>Seed {trace.seed} · root <Code>{short(trace.rootHash)}</Code></Text>
+
+          <Heading size="small">What-if</Heading>
+          <Text>Pretend the issue also had these labels:</Text>
+          <Inline space="space.100" shouldWrap>
+            {LABEL_CHOICES.map((l) => (
+              <Checkbox key={l} label={l} value={l} isChecked={addLabels.includes(l)}
+                onChange={(e: any) => toggleLabel(l, Boolean(e?.target?.checked))} />
+            ))}
+          </Inline>
+          <Label labelFor="retrace-force">Priority</Label>
+          <Select inputId="retrace-force" options={PRIORITY_OPTIONS} value={force} onChange={(o: any) => setForce(o ?? PRIORITY_OPTIONS[0])} />
+          <Inline space="space.100" alignBlock="center">
+            <Toggle id="retrace-adv" isChecked={advanced} onChange={() => setAdvanced(!advanced)} />
+            <Label labelFor="retrace-adv">Advanced: JSON overrides</Label>
+          </Inline>
+          {advanced && <TextArea name="overrides" value={json} onChange={(e: any) => setJson(e.target.value)} />}
+          <Button isDisabled={busy} onClick={doWhatIf}>Run what-if</Button>
         </Stack>
       )}
-      {replayRes && (
-        <SectionMessage appearance={replayRes.ok ? 'success' : 'warning'}>
-          <Text>{replayRes.ok ? 'Replay matched every step.' : `Replay diverged at step ${replayRes.divergedAt}: ${replayRes.reason}`}</Text>
-        </SectionMessage>
-      )}
-      <TextArea name="overrides" value={overrides} onChange={(e: any) => setOverrides(e.target.value)} />
-      {whatIfRes?.found && Array.isArray(whatIfRes.diff) && (
-        <Stack space="space.050">
-          <Heading size="small">What-if diff</Heading>
-          {whatIfRes.diff.length === 0 && <Text>No change in outcome.</Text>}
-          {whatIfRes.diff.map((d: any) => (
-            <Text key={d.field}>{d.field}: <Code>{JSON.stringify(d.before)}</Code> → <Code>{JSON.stringify(d.after)}</Code></Text>
-          ))}
+
+      {whatIfRes && !whatIfRes.found && <SectionMessage appearance="information"><Text>{whatIfRes.note}</Text></SectionMessage>}
+      {whatIfRes?.found && (
+        <Stack space="space.100">
+          <Heading size="small">What-if result</Heading>
+          {whatIfRes.diff.length === 0
+            ? <SectionMessage appearance="information"><Text>No change: the decision would be the same.</Text></SectionMessage>
+            : whatIfRes.diff.map((d: any) => (
+              <Inline key={d.field} space="space.100" alignBlock="center" shouldWrap>
+                <Text>{d.field}:</Text>
+                <Lozenge appearance="removed">{show(d.before)}</Lozenge>
+                <Text>→</Text>
+                <Lozenge appearance="success">{show(d.after)}</Lozenge>
+              </Inline>
+            ))}
+          <Text>Before <Code>{short(whatIfRes.rootHash)}</Code> → after <Code>{short(whatIfRes.altRootHash)}</Code> (same seed; nothing stored)</Text>
         </Stack>
       )}
-      <Text>Retrace panel v0.1.1</Text>
+      <Text>Retrace panel {VERSION}</Text>
     </Stack>
   );
 };

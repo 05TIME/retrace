@@ -4,6 +4,9 @@ interface ActionPayload {
   issueKey?: string;
   seed?: number;
   overridesJson?: string;
+  addLabels?: string;
+  removeLabels?: string;
+  forcePriority?: string;
   project?: string;
   text?: string;
   maxResults?: number;
@@ -32,4 +35,11 @@ export const triageHandler = (p: ActionPayload) =>
 export const findIssuesHandler = (p: ActionPayload) =>
   safe(() => findIssues({ project: p.project, text: p.text, maxResults: p.maxResults }));
 export const replayHandler = (p: ActionPayload) => safe(() => replayLatest(keyOf(p)));
-export const whatIfHandler = (p: ActionPayload) => safe(() => whatIfLatest(keyOf(p), p.overridesJson ?? '{}'));
+export const whatIfHandler = (p: ActionPayload) => safe(() =>
+    whatIfLatest(keyOf(p), {
+      addLabels: p.addLabels,
+      removeLabels: p.removeLabels,
+      forcePriority: p.forcePriority,
+      overrides: p.overridesJson,
+    }),
+  );
